@@ -1,0 +1,50 @@
+---
+- name: check if iso file exist
+  stat:
+    path: /media/centos-78.iso
+  register: centos78iso
+
+- name: download centos 7.8 dvd iso file to /media folder
+  get_url:
+    url: http://mirror.cov.ukservers.com/centos/7.8.2003/isos/x86_64/CentOS-7-x86_64-DVD-2003.iso
+    dest: /media/centos-78.iso
+    checksum: sha256:087a5743dc6fd6706d9b961b8147423ddc029451b938364c760d75440eb7be14
+  when: centos78iso.stat.exists == False
+
+- name: create directory /media/centos78
+  file:
+    path: /media/centos78
+    state: directory
+
+- name: mount centos 7.8 iso file to /media/centos78
+  mount:
+    path: /media/centos78
+    src: /media/centos-78.iso
+    opts: ro,loop
+    fstype: iso9660
+    state: mounted
+
+- name: create back up directory for existing repos
+  file:
+    path: /yum-repo.backup
+    state: directory
+
+- name: move all repos to back up directory
+  shell:
+    cmd: mv /etc/yum.repos.d/* /yum-repo.backup/
+
+- name: copy local repo template
+  template:
+    src: localrepo.j2
+    dest: /etc/yum.repos.d/local.repo
+
+- name: yum clear cache
+  shell: yum clean all
+
+- name: yum upgrade
+  yum:
+    name: '*'
+    state: latest
+
+#- name: cat /etc/centos-release
+#  debug: msg="the value of foo.txt is {{lookup('file', '/etc/centos-release') }}"

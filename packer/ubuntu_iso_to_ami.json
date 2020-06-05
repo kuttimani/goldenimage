@@ -1,0 +1,42 @@
+{
+    "builders" : [
+        {
+            "type" : "amazon-ebs",
+            "profile" : "default",
+            "region" : "{{user `region`}}",
+            "instance_type" : "t2.micro",
+            "source_ami" : "ami-01f9e6d4fd8f25c72",
+            "ssh_username" : "ec2-user",
+            "access_key" : "{{user `aws_access_key`}}",
+            "secret_key" : "{{user `aws_secret_key`}}",
+            "ssh_keypair_name" : "mymac",
+            "ami_name" : "centos7.8-ssm-enabled",
+            "ami_description" : "centos 7.8 - ssm enabled",
+            "launch_block_device_mappings": [
+              {
+                "device_name": "/dev/xvdf",
+                "volume_size": 20,
+                "volume_type": "gp2",
+                "delete_on_termination": true
+              }
+            ],
+            "run_tags" : {
+                "Name" : "centos7.8-ssm-enabled",
+                "Tool" : "Packer",
+                "Author" : "kuttimani"
+            }
+        }
+    ],
+    "provisioners" : [
+        {
+            "type" : "ansible",
+            "playbook_file" : "../ansible/playbook.yaml"
+        }
+    ],
+    "post-processors": [
+        {
+          "type": "manifest",
+          "output": "manifest.json"
+        }
+    ]
+}

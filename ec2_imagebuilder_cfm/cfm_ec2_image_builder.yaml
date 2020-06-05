@@ -1,0 +1,80 @@
+Resources:
+  InstallAnsible:
+    Type: AWS::ImageBuilder::Component
+    Properties:
+      ChangeDescription: "Initial Version"
+      Description: "Install ansible"
+      Name: "InstallAnsible"
+      Platform: "Linux"
+      Version: "0.0.1"
+      Data: |
+          name: InstallAnsible
+          description: This is installing ansible
+          schemaVersion: 1.0
+          phases:
+            - name: build
+              steps:
+                - name: AptInstallAnsible
+                  action: ExecuteBash
+                  inputs:
+                    commands:
+                      - |
+                        sudo apt-get update -y
+                        sudo apt-get install ansible -y
+                        sudo curl https://omnitruck.chef.io/install.sh | sudo bash -s -- -P inspec
+                        sudo apt-get install git
+                        git clone https://github.com/kuttimani/ubuntu-18.04-cis-benchmark-for-ansible.git
+                        cd ubuntu-18.04-cis-benchmark-for-ansible
+                        ansible-playbook -b -i "localhost,"  -c local playbook.yaml
+
+  ImageRecipe:
+    Type: 'AWS::ImageBuilder::ImageRecipe'
+    Properties:
+      Name: 'ubuntu-1804-recipe'
+      Version: '1.0.0'
+      ParentImage: arn:aws:imagebuilder:eu-west-2:aws:image/ubuntu-server-18-lts-x86/2020.4.9
+      Description: 'ImageRecipe-ubuntu-18.04'
+      Components:
+        - ComponentArn: !Ref InstallAnsible
+  InfrastructureConfigurationAll:
+    Type: 'AWS::ImageBuilder::InfrastructureConfiguration'
+    Properties:
+      Name: 'ubuntu184-infrastructure-cfg'
+      InstanceProfileName: 'mani_ec2_image_builder'
+      Description: 'ubuntu18-inf-cfg'
+      InstanceTypes:
+        - 't2.micro'
+      KeyPair: 'mymac'
+      TerminateInstanceOnFailure: false
+      SecurityGroupIds:
+        - 'sg-e9681b87'
+      SubnetId: 'subnet-29c24653'
+  DistributionConfigurationAll:
+    Type: 'AWS::ImageBuilder::DistributionConfiguration'
+    Properties:
+      Name: 'disribute-image'
+      Description: 'ubuntu1804-dist-config'
+      Distributions:
+        - Region: 'eu-west-2'
+          AmiDistributionConfiguration:
+            Name: 'ubuntu-golden-image {{ imagebuilder:buildDate }}'
+            Description: 'ubuntu-golden-image'
+  ImagePipelineAllParameters:
+    Type: 'AWS::ImageBuilder::ImagePipeline'
+    Properties:
+      Name: 'ubuntu-pipeline-1804'
+      Description: 'pipeline to create golden image'
+      ImageRecipeArn: !Ref ImageRecipe
+      InfrastructureConfigurationArn: !Ref InfrastructureConfigurationAll
+      DistributionConfigurationArn: !Ref DistributionConfigurationAll
+      ImageTestsConfiguration:
+        ImageTestsEnabled: false
+        TimeoutMinutes: 90
+  ImageAll:
+    Type: 'AWS::ImageBuilder::Image'
+    Properties:
+      ImageRecipeArn: !Ref ImageRecipe
+      InfrastructureConfigurationArn: !Ref InfrastructureConfigurationAll
+      DistributionConfigurationArn: !Ref DistributionConfigurationAll
+      ImageTestsConfiguration:
+        ImageTestsEnabled: false
